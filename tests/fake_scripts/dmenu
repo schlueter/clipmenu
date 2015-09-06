@@ -1,0 +1,8 @@
+#!/bin/sh
+
+stdin=$(cat; printf x)
+stdin=${stdin%x}
+
+printf '%s' "$stdin" > /tmp/_dmenu_test_stdin
+
+printf '%s' "$stdin" | head -1
