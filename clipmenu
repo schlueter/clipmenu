@@ -32,7 +32,9 @@ for (( i=${#files[@]}-1; i>=0; i-- )); do
     fi
 
     ordered_selections+=("$first_line")
-    selections[$first_line]=$file
+
+    first_line_md5=$(md5sum <<< "$first_line")
+    selections[$first_line_md5]=$file
 done
 
 # It's okay to hardcode `-l 8` here as a sensible default without checking
@@ -43,10 +45,12 @@ chosen_line=$(printf '%s\n' "${ordered_selections[@]}" | dmenu -l 8 "$@")
 
 [[ $chosen_line ]] || exit 1
 
+chosen_line_md5=$(md5sum <<< "$chosen_line")
+
 for selection in clipboard primary; do
     if type -p xsel >/dev/null 2>&1; then
-        xsel -i --"$selection" < "${selections[$chosen_line]}"
+        xsel -i --"$selection" < "${selections[$chosen_line_md5]}"
     else
-        xclip -sel "$selection" < "${selections[$chosen_line]}"
+        xclip -sel "$selection" < "${selections[$chosen_line_md5]}"
     fi
 done
