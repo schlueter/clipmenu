@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Some people copy/paste huge swathes of text that could slow down dmenu
+line_length_limit=500
+
 cache_dir=/tmp/clipmenu.$USER/
 mkdir -p -m0700 "$cache_dir"
 
@@ -38,9 +41,21 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         [[ ${last_data[$selection]} == "$data" ]] && continue
         last_data[$selection]=$data
 
-        md5=$(md5sum <<< "$data")
-        md5=${md5%% *}
+        # We look for the first line matching regex /./ here because we want the
+        # first line that can provide reasonable context to the user. That is, if
+        # you have 5 leading lines of whitespace, displaying " (6 lines)" is much
+        # less useful than displaying "foo (6 lines)", where "foo" is the first
+        # line in the entry with actionable context.
+        first_line=$(
+            sed -n '/./{p;q}' <<< "$data" | cut -c1-"$line_length_limit"
+        )
+        lines=$(wc -l <<< "$data")
 
-        printf '%s' "$data" > "$cache_dir/$(LC_ALL=C date +%F-%H-%M-%S)-$md5"
+        if (( lines > 1 )); then
+            first_line+=" ($lines lines)"
+        fi
+
+        filename=$cache_dir/$(LC_ALL=C date +%F-%H-%M-%S)-$first_line
+        printf '%s' "$data" > "$filename"
     done
 done
