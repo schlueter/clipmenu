@@ -49,7 +49,8 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
             fi
         fi
 
-        filename="$cache_dir/$(LC_ALL=C date +%F-%T.%N)"
+        lines=$(wc -l <<< "$data")
+        filename="$cache_dir/$(LC_ALL=C date +%F-%T.%N) $lines"
 
         last_data[$selection]=$data
         last_filename[$selection]=$filename
