@@ -54,6 +54,14 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         last_data[$selection]=$data
         last_filename[$selection]=$filename
 
+        if [[ $selection == primary ]] &&
+           [[ ${last_data[clipboard]} == "$data" ]]; then
+           # This happens with tools like autocutsel -- both selections get the
+           # same data. Now that we don't use MD5s in the filenames, we need to
+           # manually dedupe these.
+           continue
+        fi
+
         printf '%s' "$data" > "$filename"
     done
 done
