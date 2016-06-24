@@ -9,27 +9,14 @@ mkdir -p -m0700 "$cache_dir"
 declare -A last_data
 declare -A last_filename
 
+has_xsel=$(type -p xsel >/dev/null 2>&1; ! (( $? )))
+
 while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
     for selection in clipboard primary; do
-        if type -p xsel >/dev/null 2>&1; then
+        if (( has_xsel )); then
             data=$(xsel --"$selection"; printf x)
-            # Take ownership of the clipboard, in case the original application
-            # is unable to serve the clipboard request (due to being suspended,
-            # etc).
-            #
-            # Primary is excluded from the change of ownership as applications
-            # sometimes act up if clipboard focus is taken away from them --
-            # for example, urxvt will unhilight text, which is undesirable.
-            if [[ $selection != primary ]]; then
-                xsel --"$selection" | xsel -i --"$selection"
-            fi
         else
             data=$(xclip -o -sel "$selection"; printf x)
-            # See above comments about taking ownership of the clipboard for
-            # context.
-            if [[ $selection != primary ]]; then
-                xclip -o -sel "$selection" | xclip -i -sel "$selection"
-            fi
         fi
 
         # We add and remove the x so that trailing newlines are not stripped.
@@ -46,6 +33,20 @@ while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
         possible_partial=${last_data[$selection]}
         if [[ $possible_partial && $data == "$possible_partial"* ]]; then
             rm -- "${last_filename[$selection]}"
+        fi
+
+        # Take ownership of the clipboard, in case the original application is
+        # unable to serve the clipboard request (due to being suspended, etc).
+        #
+        # Primary is excluded from the change of ownership as applications
+        # sometimes act up if clipboard focus is taken away from them -- for
+        # example, urxvt will unhilight text, which is undesirable.
+        if [[ $selection != primary ]]; then
+            if (( has_xsel )); then
+                xsel --"$selection" | xsel -i --"$selection"
+            else
+                xclip -o -sel "$selection" | xclip -i -sel "$selection"
+            fi
         fi
 
         filename="$cache_dir/$(LC_ALL=C date +%F-%T.%N)"
