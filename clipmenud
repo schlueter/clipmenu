@@ -46,10 +46,14 @@ mkdir -p -m0700 "$cache_dir"
 declare -A last_data
 declare -A last_filename
 
-while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
+sleep_each=$(bc <<< "scale=2; ${CLIPMENUD_SLEEP:-0.5} / 2")
+
+while :; do
     print_debug_info 'About to run selection'
 
     for selection in clipboard primary; do
+        sleep "$sleep_each"
+
         print_debug_info "About to do selection for '$selection'"
 
         if type -p xsel >/dev/null 2>&1; then
