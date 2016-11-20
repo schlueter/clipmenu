@@ -17,7 +17,7 @@ files=("/tmp/clipmenu.$USER/"*)
 # ordered_selections from last to first -- that is, newest to oldest. Incoming
 # clipboard entries have a ISO datetime prefixed to the front to aid in this.
 for (( i=${#files[@]}-1; i>=0; i-- )); do
-    file=${files[$i]}
+    file="${files[$i]}"
 
     # We look for the first line matching regex /./ here because we want the
     # first line that can provide reasonable context to the user. That is, if
@@ -39,7 +39,7 @@ done
 # whether `-l` is also in "$@", because the way that dmenu works allows a later
 # argument to override an earlier one. That is, if the user passes in `-l`, our
 # one will be ignored.
-chosen_line=$(printf '%s\n' "${ordered_selections[@]}" | uniq | dmenu -l 8 "$@")
+chosen_line=$(printf '%s\n' "${ordered_selections[@]}" | uniq | dmenu -l "${CLIPMENU_LINES:-8}" "$@")
 
 [[ $chosen_line ]] || exit 1
 
