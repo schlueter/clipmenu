@@ -46,73 +46,71 @@ mkdir -p -m0700 "$cache_dir"
 declare -A last_data
 declare -A last_filename
 
-while sleep "${CLIPMENUD_SLEEP:-0.5}"; do
-    print_debug_info 'About to run selection'
+print_debug_info 'About to run selection'
 
-    for selection in clipboard primary; do
-        print_debug_info "About to do selection for '$selection'"
+for selection in clipboard primary; do
+    print_debug_info "About to do selection for '$selection'"
 
+    if type -p xsel >/dev/null 2>&1; then
+        debug 'Using xsel'
+        data=$(xsel -o --"$selection" 2>/dev/null; printf x)
+    else
+        debug 'Using xclip'
+        data=$(xclip -o -sel "$selection" 2>/dev/null; printf x)
+    fi
+
+    debug "Data before stripping: $data"
+
+    # We add and remove the x so that trailing newlines are not stripped.
+    # Otherwise, they would be stripped by the very nature of how POSIX
+    # defines command substitution.
+    data=${data%x}
+
+    debug "Data after stripping: $data"
+
+    if [[ $data != *[^[:space:]]* ]]; then
+        debug "Skipping as clipboard is only blank"
+        continue
+    fi
+
+    if [[ ${last_data[$selection]} == "$data" ]]; then
+        debug 'Skipping as last selection is the same as this one'
+        continue
+    fi
+
+    # If we were in the middle of doing a selection when the previous poll
+    # ran, then we may have got a partial clip.
+    possible_partial=${last_data[$selection]}
+    if [[ $possible_partial && $data == "$possible_partial"* ]]; then
+        debug "$possible_partial is a possible partial of $data"
+        debug "Removing ${last_filename[$selection]}"
+        rm -- "${last_filename[$selection]}"
+    fi
+
+    filename="$cache_dir/$(LC_ALL=C date +%F-%T.%N)"
+
+    last_data[$selection]=$data
+    last_filename[$selection]=$filename
+
+    debug "Writing $data to $filename"
+    printf '%s' "$data" > "$filename"
+
+    if ! (( NO_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
+        # Take ownership of the clipboard, in case the original application
+        # is unable to serve the clipboard request (due to being suspended,
+        # etc).
+        #
+        # Primary is excluded from the change of ownership as applications
+        # sometimes act up if clipboard focus is taken away from them --
+        # for example, urxvt will unhilight text, which is undesirable.
+        #
+        # We can't colocate this with the above copying code because
+        # https://github.com/cdown/clipmenu/issues/34 requires knowing if
+        # we would skip first.
         if type -p xsel >/dev/null 2>&1; then
-            debug 'Using xsel'
-            data=$(xsel -o --"$selection"; printf x)
+            xsel -o --"$selection" | xsel -i --"$selection"
         else
-            debug 'Using xclip'
-            data=$(xclip -o -sel "$selection"; printf x)
+            xclip -o -sel "$selection" | xclip -i -sel "$selection"
         fi
-
-        debug "Data before stripping: $data"
-
-        # We add and remove the x so that trailing newlines are not stripped.
-        # Otherwise, they would be stripped by the very nature of how POSIX
-        # defines command substitution.
-        data=${data%x}
-
-        debug "Data after stripping: $data"
-
-        if [[ $data != *[^[:space:]]* ]]; then
-            debug "Skipping as clipboard is only blank"
-            continue
-        fi
-
-        if [[ ${last_data[$selection]} == "$data" ]]; then
-            debug 'Skipping as last selection is the same as this one'
-            continue
-        fi
-
-        # If we were in the middle of doing a selection when the previous poll
-        # ran, then we may have got a partial clip.
-        possible_partial=${last_data[$selection]}
-        if [[ $possible_partial && $data == "$possible_partial"* ]]; then
-            debug "$possible_partial is a possible partial of $data"
-            debug "Removing ${last_filename[$selection]}"
-            rm -- "${last_filename[$selection]}"
-        fi
-
-        filename="$cache_dir/$(LC_ALL=C date +%F-%T.%N)"
-
-        last_data[$selection]=$data
-        last_filename[$selection]=$filename
-
-        debug "Writing $data to $filename"
-        printf '%s' "$data" > "$filename"
-
-        if ! (( NO_OWN_CLIPBOARD )) && [[ $selection != primary ]]; then
-            # Take ownership of the clipboard, in case the original application
-            # is unable to serve the clipboard request (due to being suspended,
-            # etc).
-            #
-            # Primary is excluded from the change of ownership as applications
-            # sometimes act up if clipboard focus is taken away from them --
-            # for example, urxvt will unhilight text, which is undesirable.
-            #
-            # We can't colocate this with the above copying code because
-            # https://github.com/cdown/clipmenu/issues/34 requires knowing if
-            # we would skip first.
-            if type -p xsel >/dev/null 2>&1; then
-                xsel -o --"$selection" | xsel -i --"$selection"
-            else
-                xclip -o -sel "$selection" | xclip -i -sel "$selection"
-            fi
-        fi
-    done
+    fi
 done

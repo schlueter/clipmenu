@@ -5,7 +5,6 @@ Description=Dmenu based clipboard manager utilizing xsel or xclip
 Type=simple
 EnvironmentFile=/etc/default/clipmenud
 ExecStart=/usr/bin/clipmenud
-Restart=always
 NoNewPrivileges=true
 
 [Install]

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run clipmenud every tenth of a second.
+
+[Timer]
+OnUnitInactiveSec=500us
+AccuracySec=300us
+
+[Install]
+WantedBy=timers.target

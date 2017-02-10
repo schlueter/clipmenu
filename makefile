@@ -1,30 +1,44 @@
-.PHONY: install debug config debug-install
+.PHONY: install _setup-init _install-config env
 
 CONFIG_FILE=/etc/default/clipmenud
 
-install:
+USE_SYSTEMD=$(shell if systemctl --version >/dev/null 2>/dev/null; then echo yes; else echo no; fi)
+
+install: _setup-init
 	install clipmenu /usr/bin
 	install clipmenud /usr/bin
-	install clipmenu.service /usr/lib/systemd/user
+
+ifeq ($(USE_SYSTEMD),yes)
+_setup-init: _install-config _systemd-install
+else
+_setup-init:
+	@echo Could not detect init system.
+endif
+
+_install-config:
 	@if [ -f $(CONFIG_FILE) ]; then \
 		while [ -z "$$CONFIRM" ]; do \
-			read -r -p "Clipmenu configuration exists at $(CONFIG_FILE), would you like to override? [y/N]" CONFIRM;\
+			read -r -p "Clipmenu configuration exists at $(CONFIG_FILE), would you like to overwrite? [y/N]" CONFIRM;\
 		done && \
 		( \
 			case $$CONFIRM in \
-				[yY]*) make config ;; \
+				[yY]*) make _config ;; \
 				*) echo 'Not writing $(CONFIG_FILE)'; \
 			esac ); \
 	else \
 		make config; \
 	fi
 
-config:
+_systemd-install:
+	install -m666 clipmenu.service /usr/lib/systemd/user
+	install -m666 clipmenu.timer /usr/lib/systemd/user
+	@echo 'Run `systemctl --user daemon-reload && systemctl --user restart clipmenu` to activate for current user.'
+
+_config:
 	@echo 'Writing $(CONFIG_FILE)';
 	install -d /etc/default
-	echo 'DISPLAY=:0' > $(CONFIG_FILE);
+	echo 'DISPLAY=$$DISPLAY' > $(CONFIG_FILE);
+	@if [ -z "$$DEBUG" ]; then echo 'DEBUG=1' >> $(CONFIG_FILE); fi
 
-debug:
-	echo 'DEBUG=1' >> $(CONFIG_FILE)
-
-debug-install: |install debug
+env:
+	@echo USE_SYSTEMD=$(USE_SYSTEMD)
